@@ -164,7 +164,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.1-debug5</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.1-debug6</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -262,8 +262,21 @@ document.getElementById('file-input').addEventListener('change',async e=>{
   try{
     const exif=await exifr.parse(file,{gps:true,tiff:true,exif:true,ifd0:true});
     showToast('lat='+exif?.latitude+'\nlng='+exif?.longitude+'\nkeys:\n'+(Object.keys(exif||{}).join('\n')));
-    if(exif&&exif.latitude!=null&&exif.longitude!=null){
-      currentLocation={lat:exif.latitude,lng:exif.longitude};
+
+    // latitude/longitudeが自動変換されていない場合はGPSLatitudeから手動変換
+    let lat=exif?.latitude, lng=exif?.longitude;
+    if((lat==null||lng==null)&&exif?.GPSLatitude&&exif?.GPSLongitude){
+      const toDecimal=(arr,ref)=>{
+        const d=arr[0]+(arr[1]/60)+(arr[2]/3600);
+        return (ref==='S'||ref==='W')?-d:d;
+      };
+      lat=toDecimal(exif.GPSLatitude, exif.GPSLatitudeRef);
+      lng=toDecimal(exif.GPSLongitude, exif.GPSLongitudeRef);
+    }
+    showToast('変換後: lat='+lat+' lng='+lng);
+
+    if(lat!=null&&lng!=null&&!isNaN(lat)&&!isNaN(lng)){
+      currentLocation={lat,lng};
     } else {
       if(navigator.geolocation){
         navigator.geolocation.getCurrentPosition(
