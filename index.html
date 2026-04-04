@@ -163,7 +163,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.1</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.1-debug</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -332,6 +332,7 @@ document.getElementById('file-input').addEventListener('change',e=>{
   const arrReader=new FileReader();
   arrReader.onload=ev=>{
     const exif=parseExif(ev.target.result);
+    showToast('EXIF gps:'+JSON.stringify(exif.gps)+' date:'+exif.date);
     if(exif.gps){
       currentLocation=exif.gps;
     } else {
@@ -401,6 +402,7 @@ async function identifyPlant(){
     const m=data.content[0].text.match(/\{[\s\S]*\}/);
     if(!m)throw new Error('植物情報の解析失敗: '+data.content[0].text);
     showResult(JSON.parse(m[0]));
+    showToast('保存時 location:'+JSON.stringify(currentLocation));
   }catch(e){document.getElementById('result-area').innerHTML=`<div class="result-card"><p style="color:red;font-size:13px">エラー: ${e.message}</p></div>`;}
 }
 function showResult(plant){
