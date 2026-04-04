@@ -163,7 +163,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.0</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.1</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -327,6 +327,7 @@ function parseExif(buffer){
 
 document.getElementById('file-input').addEventListener('change',e=>{
   const file=e.target.files[0];if(!file)return;
+  currentLocation=null;currentDate=null;
 
   const arrReader=new FileReader();
   arrReader.onload=ev=>{
@@ -342,36 +343,36 @@ document.getElementById('file-input').addEventListener('change',e=>{
       }
     }
     currentDate=exif.date||new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(/\//g,'/');
+
+    // EXIFを読み終えてからリサイズ処理を開始
+    const reader=new FileReader();
+    reader.onload=ev2=>{
+      const imgEl=new Image();
+      imgEl.onload=()=>{
+        const canvas=document.createElement('canvas');
+        let w=imgEl.width,h=imgEl.height;
+        const MAX=1920;
+        if(w>MAX||h>MAX){const r=Math.min(MAX/w,MAX/h);w=Math.round(w*r);h=Math.round(h*r);}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(imgEl,0,0,w,h);
+        let quality=0.85;
+        let dataUrl=canvas.toDataURL('image/jpeg',quality);
+        while(dataUrl.length*0.75>4.5*1024*1024&&quality>0.4){
+          quality-=0.1;
+          dataUrl=canvas.toDataURL('image/jpeg',quality);
+        }
+        currentImageBase64=dataUrl.split(',')[1];
+        const prev=document.getElementById('preview-img');
+        prev.src=dataUrl;prev.style.display='block';
+        document.getElementById('camera-ph').style.display='none';
+        document.getElementById('identify-btn').disabled=false;
+        document.getElementById('result-area').innerHTML='';
+      };
+      imgEl.src=ev2.target.result;
+    };
+    reader.readAsDataURL(file);
   };
   arrReader.readAsArrayBuffer(file);
-
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const original=ev.target.result;
-    const imgEl=new Image();
-    imgEl.onload=()=>{
-      const canvas=document.createElement('canvas');
-      let w=imgEl.width,h=imgEl.height;
-      const MAX=1920;
-      if(w>MAX||h>MAX){const r=Math.min(MAX/w,MAX/h);w=Math.round(w*r);h=Math.round(h*r);}
-      canvas.width=w;canvas.height=h;
-      canvas.getContext('2d').drawImage(imgEl,0,0,w,h);
-      let quality=0.85;
-      let dataUrl=canvas.toDataURL('image/jpeg',quality);
-      while(dataUrl.length*0.75>4.5*1024*1024&&quality>0.4){
-        quality-=0.1;
-        dataUrl=canvas.toDataURL('image/jpeg',quality);
-      }
-      currentImageBase64=dataUrl.split(',')[1];
-      const prev=document.getElementById('preview-img');
-      prev.src=dataUrl;prev.style.display='block';
-      document.getElementById('camera-ph').style.display='none';
-      document.getElementById('identify-btn').disabled=false;
-      document.getElementById('result-area').innerHTML='';
-    };
-    imgEl.src=original;
-  };
-  reader.readAsDataURL(file);
 });
 function resetCamera(){
   currentImageBase64=null;
