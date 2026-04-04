@@ -163,10 +163,14 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.8.0</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.0</div>
 
-<div class="modal-overlay" id="modal" onclick="closeModal(event)">
-  <div class="modal" id="modal-content"><div class="modal-handle"></div></div>
+<div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
+  <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
+    <button onclick="closeDetail()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0;line-height:1">‹</button>
+    <span id="detail-title" style="font-family:'Noto Serif JP',serif;font-size:17px;font-weight:500"></span>
+  </div>
+  <div id="detail-body" style="padding:16px"></div>
 </div>
 <script>
 const cfg={
@@ -431,7 +435,7 @@ function renderGallery(){
   const el=document.getElementById('gallery-content');
   if(!plants.length){el.innerHTML=`<div class="empty-state"><span class="icon">🌱</span><p>まだ記録がありません<br>植物を撮影して記録を始めましょう</p></div>`;return;}
   el.innerHTML=`<div class="gallery-grid">${plants.map(p=>`
-    <div class="plant-card" onclick="openModal(${p.id})">
+    <div class="plant-card" onclick="openDetail(${p.id})">
       <img src="${p.image}" alt="${p.name}" loading="lazy">
       <div class="plant-card-info">
         <h4>${p.name}${p.imageCloud?'<span class="cloud-badge">☁</span>':''}</h4>
@@ -439,28 +443,47 @@ function renderGallery(){
       </div>
     </div>`).join('')}</div>`;
 }
-function openModal(id){
+function openDetail(id){
   const p=plants.find(x=>x.id===id);if(!p)return;
   const tags=(p.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
   const loc=p.location?`${p.location.lat.toFixed(5)}, ${p.location.lng.toFixed(5)}`:'位置情報なし';
-  document.getElementById('modal-content').innerHTML=`
-    <div class="modal-handle"></div>
-    <img src="${p.image}" alt="${p.name}">
-    <h2>${p.name}</h2><p class="sci">${p.scientific_name}</p>
-    <div style="margin-bottom:8px">${tags}</div>
-    <div class="modal-section"><h5>解説</h5><p>${p.description}</p></div>
-    ${p.habitat?`<div class="modal-section"><h5>生息環境</h5><p>${p.habitat}</p></div>`:''}
-    ${p.season?`<div class="modal-section"><h5>シーズン</h5><p>${p.season}</p></div>`:''}
-    <div class="modal-section"><h5>撮影情報</h5><p>${p.date} ${p.imageCloud?'☁ クラウド保存':''}<br>${loc}</p></div>
-    <button onclick="deletePlant(${p.id})" style="margin-top:16px;background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:10px;width:100%;cursor:pointer;font-size:13px;font-family:'Noto Sans JP',sans-serif">削除する</button>`;
-  document.getElementById('modal').classList.add('open');
+  document.getElementById('detail-title').textContent=p.name;
+  document.getElementById('detail-body').innerHTML=`
+    <img src="${p.image}" alt="${p.name}" style="width:100%;border-radius:${getComputedStyle(document.documentElement).getPropertyValue('--radius')||'14px'};aspect-ratio:4/3;object-fit:cover;margin-bottom:14px">
+    <p style="font-size:13px;color:var(--text-light);font-style:italic;margin-bottom:6px">${p.scientific_name||''}</p>
+    <div style="margin-bottom:12px">${tags}</div>
+    <div class="result-card" style="margin-top:0;margin-bottom:12px">
+      <span class="confidence">信頼度 ${p.confidence}%</span>
+      <h3 style="margin-top:6px">${p.name}</h3>
+      <p class="sci-name">${p.scientific_name||''}</p>
+      <div class="desc">${p.description||''}</div>
+    </div>
+    ${p.habitat?`<div class="settings-card"><h3>🌍 生息環境</h3><p style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:0">${p.habitat}</p></div>`:''}
+    ${p.season?`<div class="settings-card"><h3>🌸 観察シーズン</h3><p style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:0">${p.season}</p></div>`:''}
+    <div class="settings-card">
+      <h3>📷 撮影情報</h3>
+      <p style="font-size:13px;color:var(--text-mid);line-height:1.8;margin-bottom:0">
+        ${p.date}<br>
+        ${loc}<br>
+        ${p.imageCloud?'☁ クラウド保存':'💾 ローカル保存'}
+      </p>
+    </div>
+    <button onclick="deletePlant(${p.id})" style="margin-top:4px;margin-bottom:24px;background:#fee2e2;color:#991b1b;border:none;padding:13px;border-radius:12px;width:100%;cursor:pointer;font-size:14px;font-family:'Noto Sans JP',sans-serif;font-weight:500">🗑 この記録を削除する</button>
+  `;
+  document.getElementById('screen-detail').style.display='block';
+  document.getElementById('screen-detail').scrollTop=0;
 }
-function closeModal(e){if(e.target.id==='modal')document.getElementById('modal').classList.remove('open');}
+function closeDetail(){
+  document.getElementById('screen-detail').style.display='none';
+}
 async function deletePlant(id){
   if(!confirm('この記録を削除しますか？'))return;
-  plants=plants.filter(p=>p.id!==id);localStorage.setItem('plants',JSON.stringify(plants));
+  plants=plants.filter(p=>p.id!==id);
+  localStorage.setItem('plants',JSON.stringify(plants));
   if(cfg.ghToken)try{await saveToGist(plants);}catch(e){}
-  document.getElementById('modal').classList.remove('open');renderGallery();
+  closeDetail();
+  renderGallery();
+  showToast('削除しました');
 }
 function initMap(){
   if(map){markers.forEach(m=>m.remove());markers=[];}
