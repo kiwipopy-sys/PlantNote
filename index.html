@@ -163,7 +163,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.6.0</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.7.0</div>
 
 <div class="modal-overlay" id="modal" onclick="closeModal(event)">
   <div class="modal" id="modal-content"><div class="modal-handle"></div></div>
@@ -248,96 +248,74 @@ async function syncNow(){
 }
 function setBadge(cls,text){const b=document.getElementById('sync-badge');b.className='sync-status'+(cls?' '+cls:'');b.textContent=text;}
 
-function parseExifGps(buffer){
-  const view=new DataView(buffer);
-  if(view.getUint16(0)!==0xFFD8)return null;
-  let offset=2;
-  while(offset<view.byteLength){
-    if(view.getUint8(offset)!==0xFF)break;
-    const marker=view.getUint8(offset+1);
-    const len=view.getUint16(offset+2);
-    if(marker===0xE1){
-      const exifHeader=String.fromCharCode(...new Uint8Array(buffer,offset+4,4));
-      if(exifHeader==='Exif'){
-        const tiffStart=offset+10;
-        const endian=view.getUint16(tiffStart);
-        const le=endian===0x4949;
-        const read16=(o)=>le?view.getUint16(o,true):view.getUint16(o,false);
-        const read32=(o)=>le?view.getUint32(o,true):view.getUint32(o,false);
-        const ifd0=tiffStart+read32(tiffStart+4);
-        const count=read16(ifd0);
-        let gpsIfdOffset=null;
-        for(let i=0;i<count;i++){
-          const e=ifd0+2+i*12;
-          if(read16(e)===0x8825){gpsIfdOffset=tiffStart+read32(e+8);break;}
-        }
-        if(!gpsIfdOffset)return null;
-        const gpsCount=read16(gpsIfdOffset);
-        const gps={};
-        for(let i=0;i<gpsCount;i++){
-          const e=gpsIfdOffset+2+i*12;
-          const tag=read16(e);
-          const valOffset=e+8;
-          if(tag===1||tag===3){gps[tag]=String.fromCharCode(view.getUint8(valOffset));}
-          else if(tag===2||tag===4){
-            const rOffset=tiffStart+read32(valOffset);
-            const deg=read32(rOffset)/read32(rOffset+4);
-            const min=read32(rOffset+8)/read32(rOffset+12);
-            const sec=read32(rOffset+16)/read32(rOffset+20);
-            gps[tag]=deg+min/60+sec/3600;
-          }
-        }
-        if(gps[2]!=null&&gps[4]!=null){
-          const lat=(gps[1]==='S')?-gps[2]:gps[2];
-          const lng=(gps[3]==='W')?-gps[4]:gps[4];
-          if(lat!==0||lng!==0)return{lat,lng};
-        }
-      }
-    }
-    offset+=2+len;
-  }
-  return null;
-}
-
-function parseExifDate(buffer){
-  const view=new DataView(buffer);
-  if(view.getUint16(0)!==0xFFD8)return null;
-  let offset=2;
-  while(offset<view.byteLength-4){
-    if(view.getUint8(offset)!==0xFF)break;
-    const marker=view.getUint8(offset+1);
-    const len=view.getUint16(offset+2);
-    if(marker===0xE1){
-      const exifHeader=String.fromCharCode(...new Uint8Array(buffer,offset+4,4));
-      if(exifHeader==='Exif'){
-        const tiffStart=offset+10;
-        const endian=view.getUint16(tiffStart);
-        const le=endian===0x4949;
-        const read16=(o)=>le?view.getUint16(o,true):view.getUint16(o,false);
-        const read32=(o)=>le?view.getUint32(o,true):view.getUint32(o,false);
-        const ifd0=tiffStart+read32(tiffStart+4);
-        const count=read16(ifd0);
-        for(let i=0;i<count;i++){
-          const e=ifd0+2+i*12;
-          const tag=read16(e);
-          if(tag===0x0132||tag===0x9003){
-            const strOffset=tiffStart+read32(e+8);
-            let s='';
-            for(let j=0;j<19;j++){
-              const c=view.getUint8(strOffset+j);
-              if(c===0)break;
-              s+=String.fromCharCode(c);
+function parseExif(buffer){
+  const result={gps:null,date:null};
+  try{
+    const view=new DataView(buffer);
+    if(view.getUint16(0)!==0xFFD8)return result;
+    let offset=2;
+    while(offset+4<view.byteLength){
+      if(view.getUint8(offset)!==0xFF)break;
+      const marker=view.getUint8(offset+1);
+      const segLen=view.getUint16(offset+2);
+      if(marker===0xE1&&offset+6<view.byteLength){
+        const hdr=String.fromCharCode(...new Uint8Array(buffer,offset+4,4));
+        if(hdr==='Exif'){
+          const tiff=offset+10;
+          const le=view.getUint16(tiff)===0x4949;
+          const r16=(o)=>view.getUint16(o,le);
+          const r32=(o)=>view.getUint32(o,le);
+          const ifd0=tiff+r32(tiff+4);
+          const cnt=r16(ifd0);
+          let gpsOff=null;
+          for(let i=0;i<cnt;i++){
+            const e=ifd0+2+i*12;
+            if(e+12>view.byteLength)break;
+            const tag=r16(e);
+            if(tag===0x8825){gpsOff=tiff+r32(e+8);}
+            if(tag===0x0132||tag===0x9003){
+              const sOff=tiff+r32(e+8);
+              let s='';
+              for(let j=0;j<19&&sOff+j<view.byteLength;j++){
+                const c=view.getUint8(sOff+j);
+                if(c===0)break;
+                s+=String.fromCharCode(c);
+              }
+              const m=s.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);
+              if(m&&!result.date)result.date=`${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}`;
             }
-            // "2024:06:15 10:23:45" → "2024/06/15 10:23"
-            const m=s.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);
-            if(m)return`${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}`;
           }
+          if(gpsOff&&gpsOff+2<view.byteLength){
+            const gpsCnt=r16(gpsOff);
+            const gps={};
+            for(let i=0;i<gpsCnt;i++){
+              const e=gpsOff+2+i*12;
+              if(e+12>view.byteLength)break;
+              const tag=r16(e);
+              if(tag===1||tag===3){gps[tag]=String.fromCharCode(view.getUint8(e+8));}
+              else if(tag===2||tag===4){
+                const rOff=tiff+r32(e+8);
+                if(rOff+20<=view.byteLength){
+                  const deg=r32(rOff)/r32(rOff+4);
+                  const min=r32(rOff+8)/r32(rOff+12);
+                  const sec=r32(rOff+16)/r32(rOff+20);
+                  gps[tag]=deg+min/60+sec/3600;
+                }
+              }
+            }
+            if(gps[2]!=null&&gps[4]!=null){
+              const lat=(gps[1]==='S')?-gps[2]:gps[2];
+              const lng=(gps[3]==='W')?-gps[4]:gps[4];
+              if(lat!==0||lng!==0)result.gps={lat,lng};
+            }
+          }
+          break;
         }
       }
+      offset+=2+segLen;
     }
-    offset+=2+len;
-  }
-  return null;
+  }catch(err){console.warn('EXIF parse error',err);}
+  return result;
 }
 
 document.getElementById('file-input').addEventListener('change',e=>{
@@ -345,9 +323,9 @@ document.getElementById('file-input').addEventListener('change',e=>{
 
   const arrReader=new FileReader();
   arrReader.onload=ev=>{
-    const exifGps=parseExifGps(ev.target.result);
-    if(exifGps){
-      currentLocation=exifGps;
+    const exif=parseExif(ev.target.result);
+    if(exif.gps){
+      currentLocation=exif.gps;
     } else {
       if(navigator.geolocation){
         navigator.geolocation.getCurrentPosition(
@@ -356,8 +334,7 @@ document.getElementById('file-input').addEventListener('change',e=>{
         );
       }
     }
-    const exifDate=parseExifDate(ev.target.result);
-    currentDate=exifDate||new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(/\//g,'/');
+    currentDate=exif.date||new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(/\//g,'/');
   };
   arrReader.readAsArrayBuffer(file);
 
