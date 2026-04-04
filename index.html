@@ -164,7 +164,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.1-debug3</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.9.1-debug4</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -260,8 +260,8 @@ document.getElementById('file-input').addEventListener('change',async e=>{
 
   // exifrでEXIF読み取り
   try{
-    const exif=await exifr.parse(file,{gps:true,pick:['DateTimeOriginal','DateTime','GPSLatitude','GPSLongitude','GPSLatitudeRef','GPSLongitudeRef']});
-    showToast('exifr: '+JSON.stringify(exif));
+    const exif=await exifr.parse(file,{gps:true,tiff:true,exif:true,ifd0:true});
+    showToast('exifr: lat='+exif?.latitude+' lng='+exif?.longitude+' keys='+Object.keys(exif||{}).join(','));
     if(exif&&exif.latitude!=null&&exif.longitude!=null){
       currentLocation={lat:exif.latitude,lng:exif.longitude};
     } else {
