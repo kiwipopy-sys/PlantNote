@@ -163,7 +163,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.1.0</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.2.0</div>
 
 <div class="modal-overlay" id="modal" onclick="closeModal(event)">
   <div class="modal" id="modal-content"><div class="modal-handle"></div></div>
@@ -275,7 +275,7 @@ async function identifyPlant(){
   if(!cfg.claude){showToast('設定タブでAPIキーを入力してください');return;}
   document.getElementById('result-area').innerHTML=`<div class="loading-state"><div class="loader"></div><br>AIが植物を解析中...</div>`;
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('https://plant-note-api.kiwipopy.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':cfg.claude},
       body:JSON.stringify({model:'claude-opus-4-5',max_tokens:1000,messages:[{role:'user',content:[
