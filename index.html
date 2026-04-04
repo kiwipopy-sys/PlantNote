@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a4a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>植物ノート</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green-dark:#1a4a2e;--green-mid:#2d6a4f;--green-soft:#52b788;
+  --green-pale:#d8f3dc;--cream:#f8f4ef;--text:#1c1c1e;
+  --text-mid:#4a4a4a;--text-light:#888;--border:#e0dbd4;
+  --card-bg:#ffffff;--radius:14px;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;overflow-x:hidden}
+.header{background:var(--green-dark);color:#fff;padding:18px 20px 14px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.header h1{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:500;letter-spacing:0.05em}
+.header-sub{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.header p{font-size:11px;color:#a8d5b5;letter-spacing:0.03em}
+.sync-status{font-size:11px;padding:3px 8px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);cursor:pointer;color:#a8d5b5}
+.sync-status.synced{border-color:#52b788;color:#52b788}
+.sync-status.syncing{color:#ffd166}
+.tab-bar{display:flex;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:64px;z-index:99}
+.tab{flex:1;padding:12px;text-align:center;font-size:12px;font-weight:500;color:var(--text-light);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s}
+.tab.active{color:var(--green-mid);border-bottom-color:var(--green-mid)}
+.screen{display:none;padding:16px}
+.screen.active{display:block}
+.camera-area{background:var(--green-dark);border-radius:var(--radius);overflow:hidden;position:relative;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:16px}
+.camera-placeholder{text-align:center;color:#a8d5b5;display:flex;flex-direction:column;align-items:center}
+.camera-placeholder .icon{font-size:48px;margin-bottom:8px}
+.camera-placeholder p{font-size:13px;opacity:0.8}
+#preview-img{width:100%;height:100%;object-fit:cover;display:none}
+#file-input{display:none}
+.btn{width:100%;padding:14px;border:none;border-radius:var(--radius);font-family:'Noto Sans JP',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:0.03em}
+.btn-primary{background:var(--green-mid);color:#fff}
+.btn-primary:hover{background:var(--green-dark)}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed}
+.btn-secondary{background:#fff;color:var(--green-mid);border:1px solid var(--green-soft);margin-top:8px}
+.result-card{background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border);padding:16px;margin-top:16px}
+.result-card h3{font-family:'Noto Serif JP',serif;font-size:16px;color:var(--green-dark);margin-bottom:4px}
+.result-card .sci-name{font-size:12px;color:var(--text-light);font-style:italic;margin-bottom:10px}
+.result-card .desc{font-size:13px;color:var(--text-mid);line-height:1.7}
+.confidence{display:inline-flex;align-items:center;gap:6px;background:var(--green-pale);color:var(--green-dark);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;margin-bottom:10px}
+.loading-state{text-align:center;padding:24px;color:var(--text-light);font-size:13px}
+.loader{display:inline-block;width:24px;height:24px;border:2px solid var(--green-pale);border-top-color:var(--green-soft);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.location-info{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-light);margin-top:8px}
+.save-btn{background:var(--green-dark);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;width:100%;margin-top:12px;font-family:'Noto Sans JP',sans-serif}
+.gallery-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.plant-card{background:var(--card-bg);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);cursor:pointer}
+.plant-card img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.plant-card-info{padding:10px}
+.plant-card-info h4{font-size:13px;font-weight:500;color:var(--green-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plant-card-info p{font-size:10px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty-state{text-align:center;padding:48px 20px;color:var(--text-light)}
+.empty-state .icon{font-size:48px;margin-bottom:12px;display:block}
+.empty-state p{font-size:14px;line-height:1.8}
+#map{height:calc(100vh - 145px);border-radius:var(--radius);overflow:hidden}
+.map-legend{background:#fff;border-radius:8px;border:1px solid var(--border);padding:8px 12px;font-size:11px;color:var(--text-mid);margin-bottom:10px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--cream);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:20px}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.modal img{width:100%;border-radius:12px;aspect-ratio:4/3;object-fit:cover;margin-bottom:14px}
+.modal h2{font-family:'Noto Serif JP',serif;font-size:20px;color:var(--green-dark);margin-bottom:2px}
+.modal .sci{font-size:13px;color:var(--text-light);font-style:italic;margin-bottom:12px}
+.modal-section{margin-top:12px}
+.modal-section h5{font-size:11px;font-weight:500;color:var(--green-soft);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
+.modal-section p{font-size:14px;color:var(--text-mid);line-height:1.75}
+.tag{display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:3px 9px;border-radius:12px;font-size:11px;margin:2px}
+.settings-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:16px;margin-bottom:14px}
+.settings-card h3{font-size:14px;font-weight:500;color:var(--green-dark);margin-bottom:4px}
+.settings-card p{font-size:12px;color:var(--text-light);margin-bottom:10px;line-height:1.6}
+.settings-card input{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--cream);color:var(--text)}
+.settings-card input:focus{outline:none;border-color:var(--green-soft)}
+.settings-row{display:flex;gap:8px;margin-top:8px}
+.small-btn{flex:1;padding:8px;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+.small-btn-primary{background:var(--green-mid);color:#fff}
+.small-btn-secondary{background:var(--cream);color:var(--text-mid);border:1px solid var(--border)}
+.status-pill{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;margin-top:6px}
+.status-ok{background:#d8f3dc;color:#1a4a2e}
+.status-ng{background:#fee2e2;color:#991b1b}
+.cloud-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:10px;background:#e8f4fd;color:#1565c0;vertical-align:middle;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>植物ノート</h1>
+  <div class="header-sub">
+    <p>撮影 → AI判定 → クラウド保存</p>
+    <div class="sync-status" id="sync-badge" onclick="syncNow()">☁ 同期</div>
+  </div>
+</div>
+<div class="tab-bar">
+  <div class="tab active" onclick="showTab('camera')">📷 撮影</div>
+  <div class="tab" onclick="showTab('gallery')">🌿 一覧</div>
+  <div class="tab" onclick="showTab('map')">🗺 地図</div>
+  <div class="tab" onclick="showTab('settings')">⚙️ 設定</div>
+</div>
+<div id="screen-camera" class="screen active">
+  <div class="camera-area" onclick="document.getElementById('file-input').click()">
+    <div class="camera-placeholder" id="camera-ph">
+      <div class="icon">🌸</div>
+      <p>タップして写真を選択<br>または撮影</p>
+    </div>
+    <img id="preview-img" alt="プレビュー">
+  </div>
+  <input type="file" id="file-input" accept="image/*" capture="environment">
+  <button class="btn btn-primary" id="identify-btn" onclick="identifyPlant()" disabled>AIで植物を判定する</button>
+  <button class="btn btn-secondary" onclick="resetCamera()">写真をリセット</button>
+  <div id="result-area"></div>
+</div>
+<div id="screen-gallery" class="screen">
+  <div id="gallery-content"></div>
+</div>
+<div id="screen-map" class="screen" style="padding:16px">
+  <div class="map-legend">📍 撮影位置に植物マーカーが表示されます。タップで詳細確認。</div>
+  <div id="map"></div>
+</div>
+<div id="screen-settings" class="screen">
+  <div class="settings-card">
+    <h3>🤖 Anthropic API キー</h3>
+    <p>植物のAI判定に使用します。<a href="https://console.anthropic.com" style="color:var(--green-mid)" target="_blank">console.anthropic.com</a> で取得できます。</p>
+    <input type="password" id="s-claude-key" placeholder="sk-ant-api03-..." />
+    <div class="settings-row">
+      <button class="small-btn small-btn-primary" onclick="saveSetting('claude')">保存</button>
+    </div>
+    <div id="claude-status"></div>
+  </div>
+  <div class="settings-card">
+    <h3>☁ Cloudinary（画像クラウド保存）</h3>
+    <p>写真をクラウドに保存します。<a href="https://cloudinary.com" style="color:var(--green-mid)" target="_blank">cloudinary.com</a> に無料登録後、ダッシュボードから取得してください。</p>
+    <input type="text" id="s-cloud-name" placeholder="Cloud name（例: myapp123）" style="margin-bottom:6px"/>
+    <input type="text" id="s-upload-preset" placeholder="Upload preset（例: plant_unsigned）" />
+    <div class="settings-row">
+      <button class="small-btn small-btn-primary" onclick="saveSetting('cloudinary')">保存</button>
+    </div>
+    <div id="cloudinary-status"></div>
+  </div>
+  <div class="settings-card">
+    <h3>🐙 GitHub Gist（データ同期）</h3>
+    <p>植物データを端末間で同期します。<a href="https://github.com/settings/tokens" style="color:var(--green-mid)" target="_blank">GitHub</a> でgistスコープのトークンを作成し、GistのIDも入力してください。</p>
+    <input type="password" id="s-gh-token" placeholder="GitHub Personal Access Token" style="margin-bottom:6px"/>
+    <input type="text" id="s-gist-id" placeholder="Gist ID（空白で初回自動作成）" />
+    <div class="settings-row">
+      <button class="small-btn small-btn-primary" onclick="saveSetting('github')">保存</button>
+      <button class="small-btn small-btn-secondary" onclick="syncNow()">今すぐ同期</button>
+    </div>
+    <div id="github-status"></div>
+  </div>
+  <div class="settings-card" style="border-color:#fee2e2">
+    <h3>🗑 データ管理</h3>
+    <p>ローカルの全記録を削除します。クラウドのデータは残ります。</p>
+    <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
+  </div>
+</div>
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" id="modal-content"><div class="modal-handle"></div></div>
+</div>
+<script>
+const cfg={
+  get claude(){return localStorage.getItem('cfg_claude')||''},
+  get cloudName(){return localStorage.getItem('cfg_cloud_name')||''},
+  get uploadPreset(){return localStorage.getItem('cfg_upload_preset')||''},
+  get ghToken(){return localStorage.getItem('cfg_gh_token')||''},
+  get gistId(){return localStorage.getItem('cfg_gist_id')||''},
+};
+let plants=JSON.parse(localStorage.getItem('plants')||'[]');
+let currentImageBase64=null,currentLocation=null,map=null,markers=[];
+
+function loadSettingsUI(){
+  if(cfg.claude)document.getElementById('s-claude-key').value=cfg.claude;
+  if(cfg.cloudName)document.getElementById('s-cloud-name').value=cfg.cloudName;
+  if(cfg.uploadPreset)document.getElementById('s-upload-preset').value=cfg.uploadPreset;
+  if(cfg.ghToken)document.getElementById('s-gh-token').value=cfg.ghToken;
+  if(cfg.gistId)document.getElementById('s-gist-id').value=cfg.gistId;
+  updateStatuses();
+}
+function updateStatuses(){
+  const set=(id,ok,msg)=>{const el=document.getElementById(id);if(el)el.innerHTML=`<span class="status-pill ${ok?'status-ok':'status-ng'}">${msg}</span>`;};
+  set('claude-status',!!cfg.claude,cfg.claude?'✓ 設定済み':'未設定');
+  set('cloudinary-status',!!(cfg.cloudName&&cfg.uploadPreset),(cfg.cloudName&&cfg.uploadPreset)?'✓ 設定済み':'未設定');
+  set('github-status',!!cfg.ghToken,cfg.ghToken?'✓ トークン設定済み'+(cfg.gistId?' / Gist設定済み':''):'未設定');
+}
+function saveSetting(type){
+  if(type==='claude'){const v=document.getElementById('s-claude-key').value.trim();if(v)localStorage.setItem('cfg_claude',v);}
+  else if(type==='cloudinary'){const cn=document.getElementById('s-cloud-name').value.trim();const up=document.getElementById('s-upload-preset').value.trim();if(cn)localStorage.setItem('cfg_cloud_name',cn);if(up)localStorage.setItem('cfg_upload_preset',up);}
+  else if(type==='github'){const t=document.getElementById('s-gh-token').value.trim();const g=document.getElementById('s-gist-id').value.trim();if(t)localStorage.setItem('cfg_gh_token',t);if(g)localStorage.setItem('cfg_gist_id',g);}
+  updateStatuses();showToast('保存しました');
+}
+async function uploadToCloudinary(base64){
+  if(!cfg.cloudName||!cfg.uploadPreset)throw new Error('Cloudinary未設定');
+  const blob=await fetch('data:image/jpeg;base64,'+base64).then(r=>r.blob());
+  const fd=new FormData();fd.append('file',blob,'plant.jpg');fd.append('upload_preset',cfg.uploadPreset);
+  const res=await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudName}/image/upload`,{method:'POST',body:fd});
+  const data=await res.json();
+  if(!data.secure_url)throw new Error(data.error?.message||'Upload failed');
+  return data.secure_url;
+}
+async function saveToGist(plantsData){
+  if(!cfg.ghToken)return;
+  const body={description:'植物ノート データ',public:false,files:{'plant_notes.json':{content:JSON.stringify(plantsData,null,2)}}};
+  if(cfg.gistId){
+    await fetch(`https://api.github.com/gists/${cfg.gistId}`,{method:'PATCH',headers:{'Authorization':'token '+cfg.ghToken,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  }else{
+    const res=await fetch('https://api.github.com/gists',{method:'POST',headers:{'Authorization':'token '+cfg.ghToken,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await res.json();
+    if(d.id){localStorage.setItem('cfg_gist_id',d.id);const el=document.getElementById('s-gist-id');if(el)el.value=d.id;updateStatuses();}
+  }
+}
+async function loadFromGist(){
+  if(!cfg.ghToken||!cfg.gistId)return null;
+  const res=await fetch(`https://api.github.com/gists/${cfg.gistId}`,{headers:{'Authorization':'token '+cfg.ghToken}});
+  if(!res.ok)return null;
+  const d=await res.json();
+  const content=d.files?.['plant_notes.json']?.content;
+  if(!content)return null;
+  return JSON.parse(content);
+}
+async function syncNow(){
+  if(!cfg.ghToken){showToast('GitHub設定が必要です');return;}
+  setBadge('syncing','↻ 同期中...');
+  try{
+    const remote=await loadFromGist();
+    if(remote&&remote.length){
+      const ids=new Set(plants.map(p=>p.id));
+      const merged=[...plants];
+      remote.forEach(p=>{if(!ids.has(p.id))merged.push(p);});
+      merged.sort((a,b)=>b.id-a.id);
+      plants=merged;
+      localStorage.setItem('plants',JSON.stringify(plants));
+    }
+    await saveToGist(plants);
+    setBadge('synced','✓ 同期済み');
+    showToast(`同期完了 (${plants.length}件)`);
+  }catch(e){setBadge('','☁ 同期');showToast('同期エラー: '+e.message);}
+}
+function setBadge(cls,text){const b=document.getElementById('sync-badge');b.className='sync-status'+(cls?' '+cls:'');b.textContent=text;}
+function getLocation(){
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(pos=>{currentLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};},()=>{currentLocation=null;});
+}
+document.getElementById('file-input').addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    currentImageBase64=ev.target.result.split(',')[1];
+    const img=document.getElementById('preview-img');img.src=ev.target.result;img.style.display='block';
+    document.getElementById('camera-ph').style.display='none';
+    document.getElementById('identify-btn').disabled=false;
+    document.getElementById('result-area').innerHTML='';
+  };
+  reader.readAsDataURL(file);getLocation();
+});
+function resetCamera(){
+  currentImageBase64=null;
+  document.getElementById('preview-img').style.display='none';
+  document.getElementById('camera-ph').style.display='flex';
+  document.getElementById('identify-btn').disabled=true;
+  document.getElementById('result-area').innerHTML='';
+  document.getElementById('file-input').value='';
+}
+async function identifyPlant(){
+  if(!currentImageBase64)return;
+  if(!cfg.claude){showToast('設定タブでAPIキーを入力してください');return;}
+  document.getElementById('result-area').innerHTML=`<div class="loading-state"><div class="loader"></div><br>AIが植物を解析中...</div>`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':cfg.claude},
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:1000,messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:currentImageBase64}},
+        {type:'text',text:`この植物をJSONで返してください。他のテキスト不要。\n{"name":"日本語名","scientific_name":"学名","confidence":85,"description":"特徴説明100字程度","habitat":"生息環境","season":"観察シーズン","tags":["タグ1","タグ2"]}\n植物でない場合: {"name":"植物が検出されませんでした","scientific_name":"","confidence":0,"description":"植物が見当たりません","habitat":"","season":"","tags":[]}`}
+      ]}]})
+    });
+    const data=await res.json();
+    const m=data.content[0].text.match(/\{[\s\S]*\}/);
+    if(!m)throw new Error('parse error');
+    showResult(JSON.parse(m[0]));
+  }catch(e){document.getElementById('result-area').innerHTML=`<div class="result-card"><p style="color:red;font-size:13px">エラー: ${e.message}</p></div>`;}
+}
+function showResult(plant){
+  const locText=currentLocation?`📍 ${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}`:'📍 位置情報なし';
+  const tagsHTML=(plant.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+  const cloudOk=cfg.cloudName&&cfg.uploadPreset;
+  document.getElementById('result-area').innerHTML=`
+    <div class="result-card">
+      <span class="confidence">信頼度 ${plant.confidence}%</span>
+      ${cloudOk?'<span class="cloud-badge">☁ クラウド保存</span>':''}
+      <h3>${plant.name}</h3>
+      <p class="sci-name">${plant.scientific_name}</p>
+      <div class="desc">${plant.description}</div>
+      ${tagsHTML?`<div style="margin-top:8px">${tagsHTML}</div>`:''}
+      <div class="location-info">${locText}</div>
+      <button class="save-btn" id="do-save">💾 記録を保存する</button>
+    </div>`;
+  document.getElementById('do-save').onclick=()=>savePlant(plant);
+}
+async function savePlant(plant){
+  const btn=document.getElementById('do-save');btn.disabled=true;btn.textContent='保存中...';
+  let imageUrl=null;
+  if(cfg.cloudName&&cfg.uploadPreset){
+    try{btn.textContent='☁ 画像をアップロード中...';imageUrl=await uploadToCloudinary(currentImageBase64);}
+    catch(e){showToast('画像アップロード失敗: '+e.message);}
+  }
+  const entry={id:Date.now(),...plant,image:imageUrl||'data:image/jpeg;base64,'+currentImageBase64,imageCloud:!!imageUrl,location:currentLocation,date:new Date().toLocaleDateString('ja-JP')};
+  plants.unshift(entry);localStorage.setItem('plants',JSON.stringify(plants));
+  if(cfg.ghToken){btn.textContent='☁ Gistに同期中...';try{await saveToGist(plants);}catch(e){showToast('Gist同期失敗');}}
+  btn.textContent='✅ 保存しました！';btn.style.background='#4caf50';setBadge('synced','✓ 同期済み');
+}
+function renderGallery(){
+  const el=document.getElementById('gallery-content');
+  if(!plants.length){el.innerHTML=`<div class="empty-state"><span class="icon">🌱</span><p>まだ記録がありません<br>植物を撮影して記録を始めましょう</p></div>`;return;}
+  el.innerHTML=`<div class="gallery-grid">${plants.map(p=>`
+    <div class="plant-card" onclick="openModal(${p.id})">
+      <img src="${p.image}" alt="${p.name}" loading="lazy">
+      <div class="plant-card-info">
+        <h4>${p.name}${p.imageCloud?'<span class="cloud-badge">☁</span>':''}</h4>
+        <p>${p.date} ${p.location?'📍':''}</p>
+      </div>
+    </div>`).join('')}</div>`;
+}
+function openModal(id){
+  const p=plants.find(x=>x.id===id);if(!p)return;
+  const tags=(p.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+  const loc=p.location?`${p.location.lat.toFixed(5)}, ${p.location.lng.toFixed(5)}`:'位置情報なし';
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-handle"></div>
+    <img src="${p.image}" alt="${p.name}">
+    <h2>${p.name}</h2><p class="sci">${p.scientific_name}</p>
+    <div style="margin-bottom:8px">${tags}</div>
+    <div class="modal-section"><h5>解説</h5><p>${p.description}</p></div>
+    ${p.habitat?`<div class="modal-section"><h5>生息環境</h5><p>${p.habitat}</p></div>`:''}
+    ${p.season?`<div class="modal-section"><h5>シーズン</h5><p>${p.season}</p></div>`:''}
+    <div class="modal-section"><h5>撮影情報</h5><p>${p.date} ${p.imageCloud?'☁ クラウド保存':''}<br>${loc}</p></div>
+    <button onclick="deletePlant(${p.id})" style="margin-top:16px;background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:10px;width:100%;cursor:pointer;font-size:13px;font-family:'Noto Sans JP',sans-serif">削除する</button>`;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(e){if(e.target.id==='modal')document.getElementById('modal').classList.remove('open');}
+async function deletePlant(id){
+  if(!confirm('この記録を削除しますか？'))return;
+  plants=plants.filter(p=>p.id!==id);localStorage.setItem('plants',JSON.stringify(plants));
+  if(cfg.ghToken)try{await saveToGist(plants);}catch(e){}
+  document.getElementById('modal').classList.remove('open');renderGallery();
+}
+function initMap(){
+  if(map){markers.forEach(m=>m.remove());markers=[];}
+  else{map=L.map('map').setView([35.68,139.69],10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);}
+  const pw=plants.filter(p=>p.location);if(!pw.length)return;
+  const bounds=[];
+  pw.forEach(p=>{
+    const icon=L.divIcon({html:`<div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid #2d6a4f;box-shadow:0 2px 6px rgba(0,0,0,0.3)"><img src="${p.image}" style="width:100%;height:100%;object-fit:cover"></div>`,iconSize:[36,36],iconAnchor:[18,18],className:''});
+    const mk=L.marker([p.location.lat,p.location.lng],{icon}).addTo(map);
+    mk.bindPopup(`<div style="min-width:160px"><img src="${p.image}" style="width:100%;border-radius:6px;margin-bottom:6px;aspect-ratio:16/9;object-fit:cover"><strong style="font-size:13px">${p.name}</strong><br><span style="font-size:11px;color:#888">${p.date}</span></div>`);
+    markers.push(mk);bounds.push([p.location.lat,p.location.lng]);
+  });
+  if(bounds.length)map.fitBounds(bounds,{padding:[30,30]});
+}
+function showTab(tab){
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',['camera','gallery','map','settings'][i]===tab);});
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+tab).classList.add('active');
+  if(tab==='gallery')renderGallery();
+  if(tab==='map')setTimeout(()=>initMap(),100);
+  if(tab==='settings')loadSettingsUI();
+}
+function clearLocal(){if(!confirm('ローカルデータを全て削除しますか？'))return;plants=[];localStorage.removeItem('plants');showToast('削除しました');}
+function showToast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a4a2e;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;z-index:999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.2)';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2800);}
+loadSettingsUI();
+if(cfg.ghToken&&cfg.gistId)setTimeout(syncNow,500);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
