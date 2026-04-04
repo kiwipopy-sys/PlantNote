@@ -163,7 +163,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.2.0</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v1.3.0</div>
 
 <div class="modal-overlay" id="modal" onclick="closeModal(event)">
   <div class="modal" id="modal-content"><div class="modal-handle"></div></div>
@@ -284,8 +284,10 @@ async function identifyPlant(){
       ]}]})
     });
     const data=await res.json();
+    if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
+    if(!data.content||!data.content[0])throw new Error('APIレスポンス異常: '+JSON.stringify(data));
     const m=data.content[0].text.match(/\{[\s\S]*\}/);
-    if(!m)throw new Error('parse error');
+    if(!m)throw new Error('植物情報の解析失敗: '+data.content[0].text);
     showResult(JSON.parse(m[0]));
   }catch(e){document.getElementById('result-area').innerHTML=`<div class="result-card"><p style="color:red;font-size:13px">エラー: ${e.message}</p></div>`;}
 }
