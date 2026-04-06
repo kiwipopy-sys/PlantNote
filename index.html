@@ -184,7 +184,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.0</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.1</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -235,7 +235,13 @@ async function uploadToCloudinary(base64){
 }
 async function saveToGist(plantsData){
   if(!cfg.ghToken)return;
-  const body={description:'植物ノート データ',public:false,files:{'plant_notes.json':{content:JSON.stringify(plantsData,null,2)}}};
+  // base64画像はGistに保存しない（サイズ超過対策）
+  const slim=plantsData.map(p=>({
+    ...p,
+    image: p.imageCloud ? p.image : '__local__'
+  }));
+  const content=JSON.stringify(slim,null,2);
+  const body={description:'植物ノート データ',public:false,files:{'plant_notes.json':{content}}};
   if(cfg.gistId){
     await fetch(`https://api.github.com/gists/${cfg.gistId}`,{method:'PATCH',headers:{'Authorization':'token '+cfg.ghToken,'Content-Type':'application/json'},body:JSON.stringify(body)});
   }else{
@@ -259,11 +265,17 @@ async function syncNow(){
   try{
     const remote=await loadFromGist();
     if(remote&&remote.length){
-      const ids=new Set(plants.map(p=>p.id));
+      const localMap=new Map(plants.map(p=>[p.id,p]));
       const merged=[...plants];
-      remote.forEach(p=>{if(!ids.has(p.id))merged.push(p);});
+      const localIds=new Set(plants.map(p=>p.id));
+      remote.forEach(p=>{
+        if(!localIds.has(p.id)){
+          // ローカル画像のないものは画像なしで追加
+          merged.push({...p, image: p.image==='__local__' ? null : p.image});
+        }
+      });
       merged.sort((a,b)=>b.id-a.id);
-      plants=merged;
+      plants=merged.filter(p=>p.image); // 画像なしは除外
       localStorage.setItem('plants',JSON.stringify(plants));
     }
     await saveToGist(plants);
