@@ -176,6 +176,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
       <button class="small-btn small-btn-primary" onclick="saveSetting('github')">保存</button>
       <button class="small-btn small-btn-secondary" onclick="syncNow()">今すぐ同期</button>
     </div>
+    <div style="margin-top:6px">
+      <button class="small-btn" style="width:100%;background:#fff3cd;color:#664d03;border:1px solid #ffc107" onclick="resetGist()">⚠️ Gistデータをリセット（破損時）</button>
+    </div>
     <div id="github-status"></div>
   </div>
   <div class="settings-card" style="border-color:#fee2e2">
@@ -184,7 +187,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.1</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.2</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -257,7 +260,13 @@ async function loadFromGist(){
   const d=await res.json();
   const content=d.files?.['plant_notes.json']?.content;
   if(!content)return null;
-  return JSON.parse(content);
+  try{
+    return JSON.parse(content);
+  }catch(e){
+    // 破損したJSONはnullを返してリセットさせる
+    console.warn('Gist JSON破損、リセットします',e);
+    return null;
+  }
 }
 async function syncNow(){
   if(!cfg.ghToken){showToast('GitHub設定が必要です');return;}
@@ -529,6 +538,19 @@ function showTab(tab){
   if(tab==='gallery')renderGallery();
   if(tab==='map')setTimeout(()=>initMap(),100);
   if(tab==='settings')loadSettingsUI();
+}
+async function resetGist(){
+  if(!cfg.ghToken||!cfg.gistId){showToast('GitHub設定が必要です');return;}
+  if(!confirm('Gistのデータをローカルのデータで上書きリセットしますか？'))return;
+  setBadge('syncing','↻ リセット中...');
+  try{
+    await saveToGist(plants);
+    setBadge('synced','✓ 同期済み');
+    showToast('Gistをリセットしました');
+  }catch(e){
+    setBadge('','☁ 同期');
+    showToast('リセット失敗: '+e.message);
+  }
 }
 function clearLocal(){if(!confirm('ローカルデータを全て削除しますか？'))return;plants=[];localStorage.removeItem('plants');showToast('削除しました');}
 function showToast(msg){
