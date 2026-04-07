@@ -187,7 +187,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.2</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.3</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -482,13 +482,16 @@ function openDetail(id){
     ${p.habitat?`<div class="settings-card"><h3>🌍 生息環境</h3><p style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:0">${p.habitat}</p></div>`:''}
     ${p.season?`<div class="settings-card"><h3>🌸 観察シーズン</h3><p style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:0">${p.season}</p></div>`:''}
     <div class="settings-card">
-      <h3>📍 撮影位置</h3>
-      <p style="font-size:12px;color:var(--text-light);margin-bottom:8px">${p.date} / ${p.imageCloud?'☁ クラウド保存':'💾 ローカル保存'}</p>
+      <h3>📍 撮影情報</h3>
+      <p style="font-size:12px;color:var(--text-light);margin-bottom:8px">${p.imageCloud?'☁ クラウド保存':'💾 ローカル保存'}</p>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:4px">撮影日時</p>
+      <input id="edit-date" type="text" value="${p.date||''}" placeholder="例: 2026/04/03 10:30" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--cream);color:var(--text);margin-bottom:8px">
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:4px">撮影位置（緯度 / 経度）</p>
       <div style="display:flex;gap:6px;margin-bottom:6px">
         <input id="edit-lat" type="number" step="0.000001" value="${lat}" placeholder="緯度 (例: 35.681)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--cream);color:var(--text)">
         <input id="edit-lng" type="number" step="0.000001" value="${lng}" placeholder="経度 (例: 139.767)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--cream);color:var(--text)">
       </div>
-      <button onclick="saveLocation(${p.id})" style="background:var(--green-mid);color:#fff;border:none;padding:8px;border-radius:8px;width:100%;cursor:pointer;font-size:12px;font-family:'Noto Sans JP',sans-serif">位置情報を保存</button>
+      <button onclick="saveLocation(${p.id})" style="background:var(--green-mid);color:#fff;border:none;padding:8px;border-radius:8px;width:100%;cursor:pointer;font-size:12px;font-family:'Noto Sans JP',sans-serif">撮影情報を保存</button>
     </div>
     <button onclick="deletePlant(${p.id})" style="margin-top:4px;margin-bottom:24px;background:#fee2e2;color:#991b1b;border:none;padding:13px;border-radius:12px;width:100%;cursor:pointer;font-size:14px;font-family:'Noto Sans JP',sans-serif;font-weight:500">🗑 この記録を削除する</button>
   `;
@@ -499,12 +502,15 @@ function openDetail(id){
 async function saveLocation(id){
   const lat=parseFloat(document.getElementById('edit-lat').value);
   const lng=parseFloat(document.getElementById('edit-lng').value);
-  if(isNaN(lat)||isNaN(lng)){showToast('正しい座標を入力してください');return;}
+  const date=document.getElementById('edit-date').value.trim();
   const p=plants.find(x=>x.id===id);if(!p)return;
-  p.location={lat,lng};
+  if(!isNaN(lat)&&!isNaN(lng)&&lat!==0&&lng!==0) p.location={lat,lng};
+  if(date) p.date=date;
   localStorage.setItem('plants',JSON.stringify(plants));
   if(cfg.ghToken)try{await saveToGist(plants);}catch(e){}
-  showToast('位置情報を保存しました');
+  showToast('撮影情報を保存しました');
+  // 詳細画面のタイトル下の日付表示も更新
+  openDetail(id);
 }
 function closeDetail(){
   document.getElementById('screen-detail').style.display='none';
