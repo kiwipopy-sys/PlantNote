@@ -187,7 +187,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.3</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.2.4</div>
 
 <div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
@@ -448,7 +448,9 @@ async function savePlant(plant){
 
 function renderGallery(){
   const el=document.getElementById('gallery-content');
-  const filtered=plants.filter(p=>seasonMatch(p,currentFilter));
+  const filtered=plants
+    .filter(p=>seasonMatch(p,currentFilter))
+    .sort((a,b)=>b.id-a.id);
   if(!filtered.length){
     el.innerHTML=`<div class="empty-state"><span class="icon">🌱</span><p>${plants.length?'該当する記録がありません':'まだ記録がありません<br>植物を撮影して記録を始めましょう'}</p></div>`;
     return;
