@@ -187,9 +187,16 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
   </div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.3.0</div>
+<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.3.1</div>
 
-<div id="screen-detail" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:150;overflow-y:auto;max-width:480px;margin:0 auto">
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:300;align-items:center;justify-content:center;flex-direction:column" onclick="closeLightbox()">
+  <button onclick="closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+  <button id="lb-prev" onclick="event.stopPropagation();lbMove(-1)" style="position:absolute;left:12px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer">‹</button>
+  <img id="lb-img" style="max-width:100%;max-height:90vh;object-fit:contain;border-radius:8px">
+  <div id="lb-counter" style="color:rgba(255,255,255,0.6);font-size:13px;margin-top:10px"></div>
+  <button id="lb-next" onclick="event.stopPropagation();lbMove(1)" style="position:absolute;right:12px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer">›</button>
+</div>
+
   <div style="position:sticky;top:0;background:var(--green-dark);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:10">
     <button onclick="closeDetail()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0;line-height:1">‹</button>
     <span id="detail-title" style="font-family:'Noto Serif JP',serif;font-size:17px;font-weight:500"></span>
@@ -476,11 +483,12 @@ function openDetail(id){
   const lat=p.location?.lat??'';
   const lng=p.location?.lng??'';
   const extras=p.extraImages||[];
+  window._lbImgs=extras;
   const extrasHTML=extras.length?`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       ${extras.map((img,i)=>`
         <div style="position:relative">
-          <img src="${img}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block">
+          <img src="${img}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;cursor:pointer" onclick="openLightbox(window._lbImgs,${i})">
           <button onclick="removeExtraImage(${p.id},${i})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:24px;height:24px;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">×</button>
         </div>`).join('')}
     </div>`:'';
@@ -521,6 +529,26 @@ function openDetail(id){
   document.getElementById(`extra-img-input-${p.id}`).addEventListener('change',e=>addExtraImages(p.id,e.target.files));
   document.getElementById('screen-detail').style.display='block';
   document.getElementById('screen-detail').scrollTop=0;
+}
+
+let lbImages=[],lbIndex=0;
+function openLightbox(images,idx){
+  lbImages=images;lbIndex=idx;
+  lbRender();
+  document.getElementById('lightbox').style.display='flex';
+}
+function closeLightbox(){
+  document.getElementById('lightbox').style.display='none';
+}
+function lbMove(dir){
+  lbIndex=(lbIndex+dir+lbImages.length)%lbImages.length;
+  lbRender();
+}
+function lbRender(){
+  document.getElementById('lb-img').src=lbImages[lbIndex];
+  document.getElementById('lb-counter').textContent=lbImages.length>1?`${lbIndex+1} / ${lbImages.length}`:'';
+  document.getElementById('lb-prev').style.display=lbImages.length>1?'block':'none';
+  document.getElementById('lb-next').style.display=lbImages.length>1?'block':'none';
 }
 
 async function addExtraImages(id, files){
