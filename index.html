@@ -190,6 +190,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
   </div>
 </div>
 
+<div id="screen-settings" class="screen">
   <div class="settings-card">
     <h3>🤖 Anthropic API キー</h3>
     <p>植物のAI判定に使用します。<a href="https://console.anthropic.com" style="color:var(--green-mid)" target="_blank">console.anthropic.com</a> で取得できます。</p>
@@ -229,8 +230,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
     <button class="small-btn" style="background:var(--green-pale);color:var(--green-dark);border:1px solid var(--green-soft);padding:10px;border-radius:8px;width:100%;cursor:pointer;margin-top:8px" onclick="applyPlantsToZukan()">📖 過去データを図鑑に反映</button>
   </div>
+  <div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.4.3</div>
 </div>
-<div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.4.2</div>
 
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:300;align-items:center;justify-content:center;flex-direction:column" onclick="closeLightbox()">
   <button onclick="closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer;line-height:1">×</button>
