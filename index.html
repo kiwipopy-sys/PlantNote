@@ -228,9 +228,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <h3>🗑 データ管理</h3>
     <p>ローカルの全記録を削除します。クラウドのデータは残ります。</p>
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
-    <button class="small-btn" style="background:var(--green-pale);color:var(--green-dark);border:1px solid var(--green-soft);padding:10px;border-radius:8px;width:100%;cursor:pointer;margin-top:8px" onclick="applyPlantsToZukan()">📖 過去データを図鑑に反映</button>
+    <button class="small-btn" style="background:var(--green-pale);color:var(--green-dark);border:1px solid var(--green-soft);padding:10px;border-radius:8px;width:100%;cursor:pointer;margin-top:8px;font-family:'Noto Sans JP',sans-serif" id="zukan-apply-btn" onclick="applyPlantsToZukanWithAI(this)">📖 過去データを図鑑に反映</button>
   </div>
-  <div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.4.3</div>
+  <div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.5.1</div>
 </div>
 
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:300;align-items:center;justify-content:center;flex-direction:column" onclick="closeLightbox()">
@@ -739,19 +739,6 @@ async function resetGist(){
 }
 function clearLocal(){if(!confirm('ローカルデータを全て削除しますか？'))return;plants=[];localStorage.removeItem('plants');showToast('削除しました');}
 
-function applyPlantsToZukan(){
-  if(!plants.length){showToast('記録がありません');return;}
-  let count=0;
-  plants.forEach(p=>{
-    const z=checkZukanMatch(p.name);
-    if(!z)return;
-    if(zukanEntries[z.id])return;
-    zukanEntries[z.id]={image:p.image,date:p.date||new Date().toLocaleDateString('ja-JP')};
-    count++;
-  });
-  localStorage.setItem('zukan_entries',JSON.stringify(zukanEntries));
-  showToast(`${count}件を図鑑に反映しました`);
-}
 function showToast(msg){
   const t=document.createElement('div');
   t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a4a2e;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;z-index:999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.2)';
@@ -869,20 +856,72 @@ const SEASON_EMOJI={春:'🌸',夏:'🌿',秋:'🍂',冬:'❄️',通年:'🌱'}
 let zukanFilter='all';
 let zukanEntries=JSON.parse(localStorage.getItem('zukan_entries')||'{}');
 
-// plants保存時にzukanを自動チェック
-function checkZukanMatch(plantName){
-  const matched=ZUKAN_LIST.find(z=>plantName.includes(z.name)||z.name.includes(plantName));
-  return matched||null;
+// 部分一致で候補を絞る（API呼び出し前の粗いフィルター）
+function findZukanCandidates(plantName){
+  return ZUKAN_LIST.filter(z=>
+    plantName.includes(z.name)||z.name.includes(plantName)||
+    plantName.replace(/[ァ-ン]/g,s=>String.fromCharCode(s.charCodeAt(0)-0x60)).includes(z.name)
+  );
 }
 
-// savePlant後にzukan照合（savePlantの末尾で呼ぶ）
-function tryZukanRegister(plantName, image){
-  const z=checkZukanMatch(plantName);
-  if(!z)return;
-  if(zukanEntries[z.id])return; // 既に登録済み
-  zukanEntries[z.id]={image,date:new Date().toLocaleDateString('ja-JP')};
+// Claude APIで「判定された植物」が「図鑑の項目」として登録してよいか判断
+async function checkZukanMatchByAI(plantName, candidate){
+  if(!cfg.claude)return false;
+  try{
+    const res=await fetch('https://plant-note-api.kiwipopy.workers.dev',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':cfg.claude},
+      body:JSON.stringify({
+        model:'claude-opus-4-5',max_tokens:10,
+        messages:[{role:'user',content:`植物の図鑑登録判定をしてください。
+判定された植物:「${plantName}」
+図鑑の項目:「${candidate.name}」
+質問:「${plantName}」は図鑑の「${candidate.name}」の項目として登録してよいですか？同一種または一般的にその名前で呼ばれる範囲内であればYes、明らかに異なる種であればNoと答えてください。YesかNoだけ返してください。`}]
+      })
+    });
+    const data=await res.json();
+    const answer=(data.content?.[0]?.text||'').trim().toLowerCase();
+    return answer.startsWith('yes');
+  }catch(e){
+    return false;
+  }
+}
+
+// savePlant後にzukan照合
+async function tryZukanRegister(plantName, image){
+  const candidates=findZukanCandidates(plantName);
+  if(!candidates.length)return;
+
+  for(const z of candidates){
+    if(zukanEntries[z.id])continue; // 既に登録済みはスキップ
+    const ok=await checkZukanMatchByAI(plantName, z);
+    if(ok){
+      zukanEntries[z.id]={image,date:new Date().toLocaleDateString('ja-JP')};
+      localStorage.setItem('zukan_entries',JSON.stringify(zukanEntries));
+      showToast(`📖 図鑑に「${z.name}」を登録しました！`);
+    }
+  }
+}
+
+// 過去データを図鑑に反映（AI判定版）
+async function applyPlantsToZukanWithAI(btn){
+  if(!plants.length){showToast('記録がありません');return;}
+  btn.disabled=true;btn.textContent='⏳ AI判定中...';
+  let count=0;
+  for(const p of plants){
+    const candidates=findZukanCandidates(p.name);
+    for(const z of candidates){
+      if(zukanEntries[z.id])continue;
+      const ok=await checkZukanMatchByAI(p.name,z);
+      if(ok){
+        zukanEntries[z.id]={image:p.image,date:p.date||new Date().toLocaleDateString('ja-JP')};
+        count++;
+      }
+    }
+  }
   localStorage.setItem('zukan_entries',JSON.stringify(zukanEntries));
-  showToast(`📖 図鑑に「${z.name}」を登録しました！`);
+  btn.disabled=false;btn.textContent='📖 過去データを図鑑に反映';
+  showToast(`${count}件を図鑑に反映しました`);
 }
 
 function setZukanFilter(f){
@@ -939,11 +978,22 @@ function openZukanDetail(id){
       ${entry?`📷 ${entry.date} に発見`:'まだ発見されていません'}
     </p>
     ${entry
-      ?`<div style="background:var(--green-pale);border-radius:10px;padding:12px;font-size:13px;color:var(--green-dark)">✅ 図鑑に登録済みです</div>`
+      ?`<div style="background:var(--green-pale);border-radius:10px;padding:12px;font-size:13px;color:var(--green-dark)">✅ 図鑑に登録済みです</div>
+        <button onclick="deleteZukanEntry(${z.id})" style="margin-top:10px;background:#fee2e2;color:#991b1b;border:none;padding:11px;border-radius:10px;width:100%;cursor:pointer;font-size:13px;font-family:'Noto Sans JP',sans-serif">🗑 この登録を削除する</button>`
       :`<div style="background:#f8f4ef;border-radius:10px;padding:12px;font-size:13px;color:var(--text-mid)">「${z.name}」を撮影してAI判定すると自動で登録されます</div>`}
     <div style="height:20px"></div>
   `;
   document.getElementById('zukan-overlay').classList.add('open');
+}
+
+function deleteZukanEntry(id){
+  const z=ZUKAN_LIST.find(x=>x.id===id);if(!z)return;
+  if(!confirm(`「${z.name}」の図鑑登録を削除しますか？`))return;
+  delete zukanEntries[id];
+  localStorage.setItem('zukan_entries',JSON.stringify(zukanEntries));
+  document.getElementById('zukan-overlay').classList.remove('open');
+  renderZukan();
+  showToast(`「${z.name}」の登録を削除しました`);
 }
 
 function closeZukanDetail(e){
