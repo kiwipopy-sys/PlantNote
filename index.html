@@ -230,7 +230,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--t
     <button class="small-btn" style="background:#fee2e2;color:#991b1b;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer" onclick="clearLocal()">ローカルデータを削除</button>
     <button class="small-btn" style="background:var(--green-pale);color:var(--green-dark);border:1px solid var(--green-soft);padding:10px;border-radius:8px;width:100%;cursor:pointer;margin-top:8px;font-family:'Noto Sans JP',sans-serif" id="zukan-apply-btn" onclick="applyPlantsToZukanWithAI(this)">📖 過去データを図鑑に反映</button>
   </div>
-  <div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.5.2</div>
+  <div style="text-align:center;padding:24px 0 12px;font-size:10px;color:var(--text-light);letter-spacing:0.05em">v2.5.3</div>
 </div>
 
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:300;align-items:center;justify-content:center;flex-direction:column" onclick="closeLightbox()">
@@ -778,6 +778,16 @@ const ZUKAN_LIST=[
   {id:23,name:'ホトケノザ',season:'春',category:'野草'},
   {id:24,name:'ハコベ',season:'春',category:'野草'},
   {id:25,name:'キュウリグサ',season:'春',category:'野草'},
+  {id:101,name:'サクラソウ',season:'春',category:'野草'},
+  {id:102,name:'ミヤコワスレ',season:'春',category:'草花'},
+  {id:103,name:'イカリソウ',season:'春',category:'野草'},
+  {id:104,name:'キケマン',season:'春',category:'野草'},
+  {id:105,name:'ニリンソウ',season:'春',category:'野草'},
+  {id:106,name:'ヒトリシズカ',season:'春',category:'野草'},
+  {id:107,name:'ハナダイコン',season:'春',category:'野草'},
+  {id:108,name:'アネモネ',season:'春',category:'球根'},
+  {id:109,name:'ラナンキュラス',season:'春',category:'球根'},
+  {id:110,name:'フリージア',season:'春',category:'球根'},
   {id:26,name:'アジサイ',season:'夏',category:'樹木'},
   {id:27,name:'ヒマワリ',season:'夏',category:'草花'},
   {id:28,name:'アサガオ',season:'夏',category:'つる植物'},
@@ -802,6 +812,16 @@ const ZUKAN_LIST=[
   {id:47,name:'ネジバナ',season:'夏',category:'野草'},
   {id:48,name:'オオバコ',season:'夏',category:'野草'},
   {id:49,name:'ハルシャギク',season:'夏',category:'野草'},
+  {id:111,name:'ミソハギ',season:'夏',category:'野草'},
+  {id:112,name:'オカトラノオ',season:'夏',category:'野草'},
+  {id:113,name:'カワラナデシコ',season:'夏',category:'野草'},
+  {id:114,name:'ハマナス',season:'夏',category:'樹木'},
+  {id:115,name:'ノリウツギ',season:'夏',category:'樹木'},
+  {id:116,name:'クレマチス',season:'夏',category:'つる植物'},
+  {id:117,name:'ハイビスカス',season:'夏',category:'草花'},
+  {id:118,name:'プルメリア',season:'夏',category:'樹木'},
+  {id:119,name:'トケイソウ',season:'夏',category:'つる植物'},
+  {id:120,name:'ヒオウギ',season:'夏',category:'球根'},
   {id:50,name:'コスモス',season:'秋',category:'草花'},
   {id:51,name:'キク',season:'秋',category:'草花'},
   {id:52,name:'ダリア',season:'秋',category:'球根'},
@@ -826,6 +846,16 @@ const ZUKAN_LIST=[
   {id:71,name:'イチョウ',season:'秋',category:'樹木'},
   {id:72,name:'モミジ',season:'秋',category:'樹木'},
   {id:73,name:'ナンテン',season:'秋',category:'樹木'},
+  {id:121,name:'シュウメイギク',season:'秋',category:'野草'},
+  {id:122,name:'フジバカマ',season:'秋',category:'野草'},
+  {id:123,name:'キキョウ',season:'秋',category:'野草'},
+  {id:124,name:'ナギナタコウジュ',season:'秋',category:'野草'},
+  {id:125,name:'イヌサフラン',season:'秋',category:'球根'},
+  {id:126,name:'ホウキギク',season:'秋',category:'野草'},
+  {id:127,name:'アケビ',season:'秋',category:'つる植物'},
+  {id:128,name:'サンシュユ',season:'秋',category:'樹木'},
+  {id:129,name:'ピラカンサ',season:'秋',category:'樹木'},
+  {id:130,name:'ムラサキシキブ',season:'秋',category:'樹木'},
   {id:74,name:'サザンカ',season:'冬',category:'樹木'},
   {id:75,name:'ツバキ',season:'冬',category:'樹木'},
   {id:76,name:'ロウバイ',season:'冬',category:'樹木'},
@@ -843,16 +873,36 @@ const ZUKAN_LIST=[
   {id:88,name:'フクジュソウ',season:'冬',category:'野草'},
   {id:89,name:'ヤブコウジ',season:'冬',category:'樹木'},
   {id:90,name:'カンアオイ',season:'冬',category:'野草'},
+  {id:131,name:'スノードロップ',season:'冬',category:'球根'},
+  {id:132,name:'ハナカイドウ',season:'冬',category:'樹木'},
+  {id:133,name:'ジンチョウゲ',season:'冬',category:'樹木'},
+  {id:134,name:'オウバイ',season:'冬',category:'樹木'},
+  {id:135,name:'アラビス',season:'冬',category:'草花'},
   {id:91,name:'バラ',season:'通年',category:'樹木'},
   {id:92,name:'ラベンダー',season:'通年',category:'草花'},
   {id:93,name:'ミント',season:'通年',category:'ハーブ'},
   {id:94,name:'ゼラニウム',season:'通年',category:'草花'},
   {id:95,name:'インパチェンス',season:'通年',category:'草花'},
   {id:96,name:'ベゴニア',season:'通年',category:'草花'},
-  {id:97,name:'クローバー',season:'通年',category:'野草'},
   {id:98,name:'ヨモギ',season:'通年',category:'野草'},
   {id:99,name:'タチアオイ',season:'通年',category:'草花'},
   {id:100,name:'アロエ',season:'通年',category:'多肉植物'},
+  {id:136,name:'ローズマリー',season:'通年',category:'ハーブ'},
+  {id:137,name:'タイム',season:'通年',category:'ハーブ'},
+  {id:138,name:'バジル',season:'通年',category:'ハーブ'},
+  {id:139,name:'カタバミ',season:'通年',category:'野草'},
+  {id:140,name:'ハルジオン',season:'通年',category:'野草'},
+  {id:141,name:'ヒメジョオン',season:'通年',category:'野草'},
+  {id:142,name:'メマツヨイグサ',season:'通年',category:'野草'},
+  {id:143,name:'コマツナギ',season:'通年',category:'野草'},
+  {id:144,name:'ランタナ',season:'通年',category:'草花'},
+  {id:145,name:'ブーゲンビレア',season:'通年',category:'つる植物'},
+  {id:146,name:'サボテン',season:'通年',category:'多肉植物'},
+  {id:147,name:'セダム',season:'通年',category:'多肉植物'},
+  {id:148,name:'エケベリア',season:'通年',category:'多肉植物'},
+  {id:149,name:'コウヤボウキ',season:'通年',category:'野草'},
+  {id:150,name:'ニワゼキショウ',season:'通年',category:'野草'},
+  {id:151,name:'ムラサキカタバミ',season:'通年',category:'野草'},
 ];
 
 const SEASON_EMOJI={春:'🌸',夏:'🌿',秋:'🍂',冬:'❄️',通年:'🌱'};
@@ -938,8 +988,8 @@ function setZukanFilter(f){
 
 function renderZukan(){
   const found=Object.keys(zukanEntries).length;
-  document.getElementById('zukan-count').textContent=`${found} / 100`;
-  document.getElementById('zukan-bar').style.width=`${found}%`;
+  document.getElementById('zukan-count').textContent=`${found} / 150`;
+  document.getElementById('zukan-bar').style.width=`${found/150*100}%`;
 
   let list=ZUKAN_LIST;
   if(zukanFilter==='未発見') list=list.filter(z=>!zukanEntries[z.id]);
@@ -958,7 +1008,7 @@ function renderZukan(){
   }).join('')}</div>`;
 
   // コンプリートチェック
-  if(found===100){
+  if(found===150){
     document.getElementById('zukan-count').innerHTML='<span style="color:#ffd166;font-weight:bold">🎉 COMPLETE!</span>';
   }
 }
